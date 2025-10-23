@@ -1,0 +1,212 @@
+import os
+import numpy as np
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator, img_to_array, load_img
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
+import speech_recognition as sr
+from pydub import AudioSegment
+import random
+
+# --- Dummy Implementation for missing external libraries ---
+# Since I cannot use sr.Recognizer() and pydub.AudioSegment in this environment,
+# I will create a mock function for speech_to_text to enable auto-generation.
+# The original function signature is kept, but the content is bypassed for simulation.
+
+# Store predefined simulation texts based on the file path to simulate realistic output
+SIMULATED_AUDIO_TEXT = {
+    'emergency_0.png': "my cat has a terrible bleeding injury and needs an emergency visit now",
+    'non_emergency_0.png': "my dog just needs a routine checkup and maybe a vaccine next week"
+}
+
+def speech_to_text_mock(audio_file, image_path_context):
+    """
+    Mock function to replace the actual speech_to_text for auto-generation.
+    It returns a predefined text based on the image being 'analyzed'.
+    """
+    print(f"  (MOCK) Simulating speech recognition for image context: {os.path.basename(image_path_context)}")
+    # Use context from image_path_context to decide which text to return
+    if 'emergency' in image_path_context:
+        return SIMULATED_AUDIO_TEXT['emergency_0.png']
+    else:
+        return SIMULATED_AUDIO_TEXT['non_emergency_0.png']
+
+# -------------------
+# Step 1: Create Dummy Dataset (tiny)
+# -------------------
+
+def create_dummy_images():
+    # Create folders
+    os.makedirs('dummy_data/emergency', exist_ok=True)
+    os.makedirs('dummy_data/non_emergency', exist_ok=True)
+
+    # Create 5 simple red images for emergency (simulating inflammation)
+    for i in range(5):
+        red_img = np.full((64,64,3), [255, 0, 0], dtype=np.uint8)
+        tf.keras.preprocessing.image.save_img(f'dummy_data/emergency/emergency_{i}.png', red_img)
+
+    # Create 5 simple green images for non-emergency (simulating healthy)
+    for i in range(5):
+        green_img = np.full((64,64,3), [0, 255, 0], dtype=np.uint8)
+        tf.keras.preprocessing.image.save_img(f'dummy_data/non_emergency/non_emergency_{i}.png', green_img)
+
+create_dummy_images()
+
+# -------------------
+# Step 2: Prepare Image Data Generator
+# -------------------
+datagen = ImageDataGenerator(rescale=1./255, validation_split=0.2)
+
+train_gen = datagen.flow_from_directory(
+    'dummy_data',
+    target_size=(64,64),
+    batch_size=2,
+    class_mode='binary',
+    subset='training',
+    shuffle=True
+)
+
+val_gen = datagen.flow_from_directory(
+    'dummy_data',
+    target_size=(64,64),
+    batch_size=2,
+    class_mode='binary',
+    subset='validation',
+    shuffle=True
+)
+
+# -------------------
+# Step 3: Build Simple CNN Model
+# -------------------
+model = Sequential([
+    Conv2D(16, (3,3), activation='relu', input_shape=(64,64,3)),
+    MaxPooling2D(),
+    Conv2D(32, (3,3), activation='relu'),
+    MaxPooling2D(),
+    Flatten(),
+    Dense(32, activation='relu'),
+    Dense(1, activation='sigmoid')
+])
+
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+# -------------------
+# Step 4: Train Model (quick)
+# -------------------
+print("Training model on dummy data...")
+# Suppressing output for brevity in this response, but keeping the call
+model.fit(train_gen, validation_data=val_gen, epochs=5, verbose=0) 
+print("Training complete.")
+
+
+# -------------------
+# Step 5: Speech to Text Function (REPLACED by mock for auto-demo)
+# -------------------
+# The original function is commented out/replaced by the mock for execution in this environment.
+# def speech_to_text(audio_file):
+#     ... original code ...
+#     return text.lower()
+
+
+# -------------------
+# Step 6: Predict Image Emergency
+# -------------------
+def predict_image_emergency(img_path):
+    img = load_img(img_path, target_size=(64,64))
+    img_array = np.expand_dims(img_to_array(img)/255.0, axis=0)
+    pred = model.predict(img_array, verbose=0)[0][0]
+    return pred > 0.5
+
+# -------------------
+# Step 7: Combine Speech & Image Analysis
+# -------------------
+def classify_case(image_path, audio_path):
+    print("\nAnalyzing audio...")
+    # *** Using the MOCK function here ***
+    speech_text = speech_to_text_mock(audio_path, image_path) 
+    print("Recognized speech:", speech_text)
+
+    emergency_keywords = ['bleeding', 'injury', 'emergency', 'pain', 'fracture', 'collapse', 'vomit']
+    text_emergency = any(word in speech_text for word in emergency_keywords)
+    print(f"Text analysis suggests emergency: {text_emergency}")
+
+    print("\nAnalyzing image...")
+    image_emergency = predict_image_emergency(image_path)
+    print(f"Image classified as emergency: {image_emergency}")
+
+    if text_emergency or image_emergency:
+        return True
+    else:
+        return False
+
+# -------------------
+# Step 8: Reschedule & Notify (simulated)
+# -------------------
+def reschedule_and_notify(is_emergency):
+    if is_emergency:
+        print("\n--- Emergency case detected! ---")
+        new_time = "ASAP (within next 30 minutes)"
+    else:
+        print("\n--- Non-emergency case ---")
+        new_time = "Next available slot in 2 days"
+
+    print(f"Rescheduling appointment to: {new_time}")
+    print("Sending notification to owner: Appointment updated.")
+
+# -------------------
+# Step 9: Run Demo with Auto-Generated Input
+# -------------------
+
+def run_demo_auto():
+    """
+    Auto-generates inputs for an emergency and a non-emergency scenario 
+    and runs the classifier for both.
+    """
+    
+    # --- Scenario 1: Auto-generate EMERGENCY case ---
+    print("\n\n===== AUTO DEMO SCENARIO 1: EMERGENCY CASE =====")
+    
+    # 1. Auto-generate Image Path
+    # Using the first red (emergency) dummy image
+    auto_image_path_emergency = 'dummy_data/emergency/emergency_0.png'
+    # 2. Auto-generate Audio Path (dummy placeholder since we use a mock for text)
+    auto_audio_path_emergency = 'simulated_emergency_audio.mp3'
+    
+    print(f"Auto-selected Image: {auto_image_path_emergency}")
+    print(f"Auto-selected Audio Path: {auto_audio_path_emergency} (Speech is simulated)")
+
+    emergency = classify_case(auto_image_path_emergency, auto_audio_path_emergency)
+    reschedule_and_notify(emergency)
+
+    # --- Scenario 2: Auto-generate NON-EMERGENCY case ---
+    print("\n\n===== AUTO DEMO SCENARIO 2: NON-EMERGENCY CASE =====")
+
+    # 1. Auto-generate Image Path
+    # Using the first green (non-emergency) dummy image
+    auto_image_path_non_emergency = 'dummy_data/non_emergency/non_emergency_0.png'
+    # 2. Auto-generate Audio Path (dummy placeholder since we use a mock for text)
+    auto_audio_path_non_emergency = 'simulated_non_emergency_audio.mp3'
+    
+    print(f"Auto-selected Image: {auto_image_path_non_emergency}")
+    print(f"Auto-selected Audio Path: {auto_audio_path_non_emergency} (Speech is simulated)")
+    
+    emergency = classify_case(auto_image_path_non_emergency, auto_audio_path_non_emergency)
+    reschedule_and_notify(emergency)
+
+
+# -------------------
+# Run the auto demo
+# -------------------
+if _name_ == "_main_":
+    # If you want to run the original user-input demo, uncomment the line below
+    # run_demo() 
+    
+    # Run the auto-generated demo
+    run_demo_auto()
+    
+    # Cleanup dummy files
+    import shutil
+    try:
+        shutil.rmtree('dummy_data')
+    except OSError as e:
+        print(f"Error during cleanup: {e}")
